@@ -1,4 +1,4 @@
-//******************************************************************************
+   //******************************************************************************
 // Ported from Rocket-Chip
 // See LICENSE.Berkeley and LICENSE.SiFive in Rocket-Chip for license details.
 //------------------------------------------------------------------------------
@@ -499,6 +499,7 @@ class BoomNonBlockingDCacheModule(outer: BoomNonBlockingDCache) extends LazyModu
   replay_req(0).addr       := mshrs.io.replay.bits.addr
   replay_req(0).data       := mshrs.io.replay.bits.data
   replay_req(0).is_hella   := mshrs.io.replay.bits.is_hella
+  replay_req(0).ee         :=  mshrs.io.replay.bits.ee
   mshrs.io.replay.ready    := metaReadArb.io.in(0).ready && dataReadArb.io.in(0).ready
   // Tag read for MSHR replays
   // We don't actually need to read the metadata, for replays we already know our way
@@ -520,6 +521,7 @@ class BoomNonBlockingDCacheModule(outer: BoomNonBlockingDCache) extends LazyModu
   mshr_read_req(0).addr     := Cat(mshrs.io.meta_read.bits.tag, mshrs.io.meta_read.bits.idx) << blockOffBits
   mshr_read_req(0).data     := DontCare
   mshr_read_req(0).is_hella := false.B
+  mshr_read_req(0).ee       := false.B
   metaReadArb.io.in(3).valid       := mshrs.io.meta_read.valid
   metaReadArb.io.in(3).bits.req(0) := mshrs.io.meta_read.bits
   mshrs.io.meta_read.ready         := metaReadArb.io.in(3).ready
@@ -535,6 +537,7 @@ class BoomNonBlockingDCacheModule(outer: BoomNonBlockingDCache) extends LazyModu
   wb_req(0).addr     := Cat(wb.io.meta_read.bits.tag, wb.io.data_req.bits.addr)
   wb_req(0).data     := DontCare
   wb_req(0).is_hella := false.B
+  wb_req(0).ee       := false.B
   // Couple the two decoupled interfaces of the WBUnit's meta_read and data_read
   // Tag read for write-back
   metaReadArb.io.in(2).valid        := wb.io.meta_read.valid
@@ -556,6 +559,7 @@ class BoomNonBlockingDCacheModule(outer: BoomNonBlockingDCache) extends LazyModu
   prober_req(0).addr     := Cat(prober.io.meta_read.bits.tag, prober.io.meta_read.bits.idx) << blockOffBits
   prober_req(0).data     := DontCare
   prober_req(0).is_hella := false.B
+  prober_req(0).ee       := false.B
   // Tag read for prober
   metaReadArb.io.in(1).valid       := prober.io.meta_read.valid
   metaReadArb.io.in(1).bits.req(0) := prober.io.meta_read.bits
@@ -766,6 +770,7 @@ class BoomNonBlockingDCacheModule(outer: BoomNonBlockingDCache) extends LazyModu
 
     mshrs.io.req(w).bits.data        := s2_req(w).data
     mshrs.io.req(w).bits.is_hella    := s2_req(w).is_hella
+    mshrs.io.req(w).bits.ee          := s2_req(w).ee
     mshrs.io.req_is_probe(w)         := s2_type === t_probe && s2_valid(w)
   }
 
@@ -836,6 +841,7 @@ class BoomNonBlockingDCacheModule(outer: BoomNonBlockingDCache) extends LazyModu
     cache_resp(w).bits.uop      := s2_req(w).uop
     cache_resp(w).bits.data     := loadgen(w).data | s2_sc_fail
     cache_resp(w).bits.is_hella := s2_req(w).is_hella
+    cache_resp(w).bits.ee       := s2_req(w).ee
   }
 
   val uncache_resp = Wire(Valid(new BoomDCacheResp))

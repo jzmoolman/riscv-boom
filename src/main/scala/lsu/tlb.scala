@@ -42,6 +42,7 @@ class NBDTLB(instruction: Boolean, lgMaxSize: Int, cfg: TLBConfig)(implicit edge
     val paa = Bool() // AMO arithmetic
     val eff = Bool() // get/put effects
     val c = Bool()
+    val ee = Bool() // Encryption Enabled
     val fragmented_superpage = Bool()
   }
 
@@ -167,6 +168,7 @@ class NBDTLB(instruction: Boolean, lgMaxSize: Int, cfg: TLBConfig)(implicit edge
   val prot_aa  = widthMap(w => fastCheck(_.supportsArithmetic, w))
   val prot_x   = widthMap(w => fastCheck(_.executable, w) && pmp(w).io.x)
   val prot_eff = widthMap(w => fastCheck(Seq(RegionType.PUT_EFFECTS, RegionType.GET_EFFECTS) contains _.regionType, w))
+  val prot_ee   = widthMap(w =>  pmp(w).io.ee)
 
   val sector_hits = widthMap(w => VecInit(sectored_entries.map(_.sectorHit(vpn(w)))))
   val superpage_hits = widthMap(w => VecInit(superpage_entries.map(_.hit(vpn(w)))))
@@ -194,6 +196,7 @@ class NBDTLB(instruction: Boolean, lgMaxSize: Int, cfg: TLBConfig)(implicit edge
     newEntry.paa := prot_aa(0)
     newEntry.eff := prot_eff(0)
     newEntry.fragmented_superpage := io.ptw.resp.bits.fragmented_superpage
+    newEntry.ee := prot_ee(0)
 
     when (special_entry.nonEmpty.B && !io.ptw.resp.bits.homogeneous) {
       special_entry.foreach(_.insert(r_refill_tag, io.ptw.resp.bits.level, newEntry))
@@ -224,6 +227,7 @@ class NBDTLB(instruction: Boolean, lgMaxSize: Int, cfg: TLBConfig)(implicit edge
   val px_array     = widthMap(w => Cat(Fill(nPhysicalEntries, prot_x(w))   , normal_entries(w).map(_.px).asUInt) & ~ptw_ae_array(w))
   val eff_array    = widthMap(w => Cat(Fill(nPhysicalEntries, prot_eff(w)) , normal_entries(w).map(_.eff).asUInt))
   val c_array      = widthMap(w => Cat(Fill(nPhysicalEntries, cacheable(w)), normal_entries(w).map(_.c).asUInt))
+  val ee_array     = widthMap(w => Cat(Fill(nPhysicalEntries, prot_ee(w)), normal_entries(w).map(_.ee).asUInt))
   val paa_array    = widthMap(w => Cat(Fill(nPhysicalEntries, prot_aa(w))  , normal_entries(w).map(_.paa).asUInt))
   val pal_array    = widthMap(w => Cat(Fill(nPhysicalEntries, prot_al(w))  , normal_entries(w).map(_.pal).asUInt))
   val paa_array_if_cached = widthMap(w => paa_array(w) | Mux(usingAtomicsInCache.B, c_array(w), 0.U))
@@ -306,6 +310,7 @@ class NBDTLB(instruction: Boolean, lgMaxSize: Int, cfg: TLBConfig)(implicit edge
     io.resp(w).prefetchable := (prefetchable_array(w) & hits(w)).orR && edge.manager.managers.forall(m => !m.supportsAcquireB || m.supportsHint).B
     io.resp(w).miss  := do_refill || tlb_miss(w) || multipleHits(w)
     io.resp(w).paddr := Cat(ppn(w), io.req(w).bits.vaddr(pgIdxBits-1, 0))
+    io.resp(w).ee := ee_array(w)
   }
 
   io.ptw.req.valid := state === s_request
