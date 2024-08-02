@@ -111,6 +111,7 @@ class BoomMSHR(implicit edge: TLEdgeOut, p: Parameters) extends BoomModule()(p)
   val req_tag = req.addr >> untagBits
   val req_block_addr = (req.addr >> blockOffBits) << blockOffBits
   val req_needs_wb = RegInit(false.B)
+  val req_ee = req.ee
 
   val new_coh = RegInit(ClientMetadata.onReset)
   val (_, shrink_param, coh_on_clear) = req.old_meta.coh.onCacheControl(M_FLUSH)
@@ -222,8 +223,10 @@ class BoomMSHR(implicit edge: TLEdgeOut, p: Parameters) extends BoomModule()(p)
   } .elsewhen (state === s_refill_req) {
     io.mem_acquire.valid := true.B
     // TODO: Use AcquirePerm if just doing permissions acquire
+
+
     io.mem_acquire.bits  := edge.AcquireBlock(
-      fromSource      = io.id,
+      fromSource      = Mux(req_ee,io.id, io.id),
       toAddress       = Cat(req_tag, req_idx) << blockOffBits,
       lgSize          = lgCacheBlockBytes.U,
       growPermissions = grow_param)._2
@@ -276,6 +279,7 @@ class BoomMSHR(implicit edge: TLEdgeOut, p: Parameters) extends BoomModule()(p)
     io.resp.bits.uop  := rpq.io.deq.bits.uop
     io.resp.bits.data := loadgen.data
     io.resp.bits.is_hella := rpq.io.deq.bits.is_hella
+    io.resp.bits.ee := rpq.io.deq.bits.ee //zzzz
     when (rpq.io.deq.fire) {
       commit_line   := true.B
     }
@@ -413,6 +417,7 @@ class BoomIOMSHR(id: Int)(implicit edge: TLEdgeOut, p: Parameters) extends BoomM
 
   def beatOffset(addr: UInt) = addr.extract(beatOffBits-1, wordOffBits)
 
+
   def wordFromBeat(addr: UInt, dat: UInt) = {
     val shift = Cat(beatOffset(addr), 0.U((wordOffBits+log2Ceil(wordBytes)).W))
     (dat >> shift)(wordBits-1, 0)
@@ -462,6 +467,7 @@ class BoomIOMSHR(id: Int)(implicit edge: TLEdgeOut, p: Parameters) extends BoomM
   io.resp.bits.is_hella := req.is_hella
   io.resp.bits.uop  := req.uop
   io.resp.bits.data := loadgen.data
+  io.resp.bits.ee := req.ee
 
   when (io.req.fire) {
     req   := io.req.bits
