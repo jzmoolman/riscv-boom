@@ -417,6 +417,7 @@ class BoomNonBlockingDCacheModule(outer: BoomNonBlockingDCache) extends LazyModu
   implicit val edge = outer.node.edges.out(0)
   val (tl_out, _) = outer.node.out(0)
   val io = IO(new BoomDCacheBundle)
+//  io.lsu.req.bits(0).bits.ee
 
   private val fifoManagers = edge.manager.managers.filter(TLFIFOFixer.allVolatile)
   fifoManagers.foreach { m =>

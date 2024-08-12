@@ -226,10 +226,12 @@ class BoomMSHR(implicit edge: TLEdgeOut, p: Parameters) extends BoomModule()(p)
 
 
     io.mem_acquire.bits  := edge.AcquireBlock(
-      fromSource      = Mux(req_ee,io.id, io.id),
+      fromSource      = Mux(req_ee,io.id,0.U),
+//      fromSource      = Mux(req_ee,io.o.id),
       toAddress       = Cat(req_tag, req_idx) << blockOffBits,
       lgSize          = lgCacheBlockBytes.U,
       growPermissions = grow_param)._2
+    io.mem_acquire.bits.ee := req_ee
     when (io.mem_acquire.fire) {
       state := s_refill_resp
     }

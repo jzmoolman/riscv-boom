@@ -167,25 +167,24 @@ class LSUIO(implicit p: Parameters, edge: TLEdgeOut) extends BoomBundle()(p)
 }
 
 class LDQEntry(implicit p: Parameters) extends BoomBundle()(p)
-    with HasBoomUOP
-{
-  val addr                = Valid(UInt(coreMaxAddrBits.W))
-  val addr_is_virtual     = Bool() // Virtual address, we got a TLB miss
+    with HasBoomUOP {
+  val addr = Valid(UInt(coreMaxAddrBits.W))
+  val addr_is_virtual = Bool() // Virtual address, we got a TLB miss
   val addr_is_uncacheable = Bool() // Uncacheable, wait until head of ROB to execute
 
-  val executed            = Bool() // load sent to memory, reset by NACKs
-  val succeeded           = Bool()
-  val order_fail          = Bool()
-  val observed            = Bool()
+  val executed = Bool() // load sent to memory, reset by NACKs
+  val succeeded = Bool()
+  val order_fail = Bool()
+  val observed = Bool()
 
-  val st_dep_mask         = UInt(numStqEntries.W) // list of stores older than us
-  val youngest_stq_idx    = UInt(stqAddrSz.W) // index of the oldest store younger than us
+  val st_dep_mask = UInt(numStqEntries.W) // list of stores older than us
+  val youngest_stq_idx = UInt(stqAddrSz.W) // index of the oldest store younger than us
 
-  val forward_std_val     = Bool()
-  val forward_stq_idx     = UInt(stqAddrSz.W) // Which store did we get the store-load forward from?
+  val forward_std_val = Bool()
+  val forward_stq_idx = UInt(stqAddrSz.W) // Which store did we get the store-load forward from?
 
-  val debug_wb_data       = UInt(xLen.W)
-  val ee                  = Bool()   // Encryption enabled
+  val debug_wb_data = UInt(xLen.W)
+  val ee = Bool() // Encryption enabled
 }
 
 class STQEntry(implicit p: Parameters) extends BoomBundle()(p)
@@ -716,7 +715,7 @@ class LSU(implicit p: Parameters, edge: TLEdgeOut) extends BoomModule()(p)
   val exe_tlb_paddr = widthMap(w => Cat(dtlb.io.resp(w).paddr(paddrBits-1,corePgIdxBits),
                                         exe_tlb_vaddr(w)(corePgIdxBits-1,0)))
   val exe_tlb_uncacheable = widthMap(w => !(dtlb.io.resp(w).cacheable))
-  val exe_tlb_ee = widthMap(w => dtlb.io.resp(w).ee)
+  val exe_tlb_ee = widthMap(w => dontTouch(dtlb.io.resp(w).ee))
 
   for (w <- 0 until memWidth) {
     assert (exe_tlb_paddr(w) === dtlb.io.resp(w).paddr || exe_req(w).bits.sfence.valid, "[lsu] paddrs should match.")
@@ -776,7 +775,9 @@ class LSU(implicit p: Parameters, edge: TLEdgeOut) extends BoomModule()(p)
       dmem_req(w).valid      := !exe_tlb_miss(w) && !exe_tlb_uncacheable(w)
       dmem_req(w).bits.addr  := exe_tlb_paddr(w)
       dmem_req(w).bits.uop   := exe_tlb_uop(w)
-      dmem_req(w).bits.ee    := exe_tlb_ee(w) ///ZZZ
+//    dmem_req(w).bits.ee    := exe_tlb_ee(w) ///ZZZ
+      val exe_tlb_ee_1 = Mux( exe_tlb_ee(w), 0.B , 1.B)
+      dmem_req(w).bits.ee    := exe_tlb_ee_1 ///ZZZ
 
       s0_executing_loads(ldq_incoming_idx(w)) := dmem_req_fire(w)
       assert(!ldq_incoming_e(w).bits.executed)
@@ -825,7 +826,6 @@ class LSU(implicit p: Parameters, edge: TLEdgeOut) extends BoomModule()(p)
       dmem_req(w).bits.uop.mem_size   := hella_req.size
       dmem_req(w).bits.uop.mem_signed := hella_req.signed
       dmem_req(w).bits.is_hella       := true.B
-      dmem_req(w).bits.ee             := false.B
       dmem_req(w).bits.ee             := false.B
 
       hella_paddr := exe_tlb_paddr(w)

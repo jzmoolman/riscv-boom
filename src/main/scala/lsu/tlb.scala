@@ -9,6 +9,7 @@ import freechips.rocketchip.tilelink._
 import freechips.rocketchip.subsystem.{CacheBlockBytes}
 import freechips.rocketchip.diplomacy.{RegionType}
 import freechips.rocketchip.util._
+import chisel3.dontTouch
 
 import boom.common._
 import boom.exu.{BrResolutionInfo, Exception, FuncUnitResp, CommitSignals}
@@ -16,14 +17,14 @@ import boom.util.{BoolToChar, AgePriorityEncoder, IsKilledByBranch, GetNewBrMask
 
 class NBDTLB(instruction: Boolean, lgMaxSize: Int, cfg: TLBConfig)(implicit edge: TLEdgeOut, p: Parameters) extends BoomModule()(p) {
   require(!instruction)
-  val io = IO(new Bundle {
+  val io = dontTouch(IO(new Bundle {
     val req = Flipped(Vec(memWidth, Decoupled(new TLBReq(lgMaxSize))))
     val miss_rdy = Output(Bool())
     val resp = Output(Vec(memWidth, new TLBResp))
     val sfence = Input(Valid(new SFenceReq))
     val ptw = new TLBPTWIO
     val kill = Input(Bool())
-  })
+  }))
   io.ptw := DontCare
   io.resp := DontCare
 
@@ -168,7 +169,8 @@ class NBDTLB(instruction: Boolean, lgMaxSize: Int, cfg: TLBConfig)(implicit edge
   val prot_aa  = widthMap(w => fastCheck(_.supportsArithmetic, w))
   val prot_x   = widthMap(w => fastCheck(_.executable, w) && pmp(w).io.x)
   val prot_eff = widthMap(w => fastCheck(Seq(RegionType.PUT_EFFECTS, RegionType.GET_EFFECTS) contains _.regionType, w))
-  val prot_ee   = widthMap(w =>  pmp(w).io.ee)
+
+  val prot_ee   = widthMap(w =>  dontTouch(pmp(w).io.ee))  //probe this wire to see what I get back from PMPChecker
 
   val sector_hits = widthMap(w => VecInit(sectored_entries.map(_.sectorHit(vpn(w)))))
   val superpage_hits = widthMap(w => VecInit(superpage_entries.map(_.hit(vpn(w)))))
@@ -310,7 +312,8 @@ class NBDTLB(instruction: Boolean, lgMaxSize: Int, cfg: TLBConfig)(implicit edge
     io.resp(w).prefetchable := (prefetchable_array(w) & hits(w)).orR && edge.manager.managers.forall(m => !m.supportsAcquireB || m.supportsHint).B
     io.resp(w).miss  := do_refill || tlb_miss(w) || multipleHits(w)
     io.resp(w).paddr := Cat(ppn(w), io.req(w).bits.vaddr(pgIdxBits-1, 0))
-    io.resp(w).ee := ee_array(w)
+    io.resp(w).ee := dontTouch(ee_array(w))
+//    io.resp(w).ee := prot_ee(w)  // pmp_0_io_ee
   }
 
   io.ptw.req.valid := state === s_request
