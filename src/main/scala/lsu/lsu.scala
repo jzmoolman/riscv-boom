@@ -657,6 +657,8 @@ class LSU(implicit p: Parameters, edge: TLEdgeOut) extends BoomModule()(p)
     dtlb.io.req(w).bits.passthrough := exe_passthr(w)
     dtlb.io.req(w).bits.v           := io.ptw.status.v
     dtlb.io.req(w).bits.prv         := io.ptw.status.prv
+    // zzz
+    // dtlb.io.req(w).bits.ee
   }
   dtlb.io.kill                      := exe_kill.reduce(_||_)
   dtlb.io.sfence                    := exe_sfence
@@ -715,7 +717,10 @@ class LSU(implicit p: Parameters, edge: TLEdgeOut) extends BoomModule()(p)
   val exe_tlb_paddr = widthMap(w => Cat(dtlb.io.resp(w).paddr(paddrBits-1,corePgIdxBits),
                                         exe_tlb_vaddr(w)(corePgIdxBits-1,0)))
   val exe_tlb_uncacheable = widthMap(w => !(dtlb.io.resp(w).cacheable))
-  val exe_tlb_ee = widthMap(w => dontTouch(dtlb.io.resp(w).ee))
+  //zzz
+//  val exe_tlb_ee = widthMap(w => dontTouch(dtlb.io.resp(w).ee))
+  val exe_tlb_ee = widthMap(_ => true.B )
+  dontTouch(exe_tlb_ee)
 
   for (w <- 0 until memWidth) {
     assert (exe_tlb_paddr(w) === dtlb.io.resp(w).paddr || exe_req(w).bits.sfence.valid, "[lsu] paddrs should match.")
@@ -775,9 +780,8 @@ class LSU(implicit p: Parameters, edge: TLEdgeOut) extends BoomModule()(p)
       dmem_req(w).valid      := !exe_tlb_miss(w) && !exe_tlb_uncacheable(w)
       dmem_req(w).bits.addr  := exe_tlb_paddr(w)
       dmem_req(w).bits.uop   := exe_tlb_uop(w)
-//    dmem_req(w).bits.ee    := exe_tlb_ee(w) ///ZZZ
-      val exe_tlb_ee_1 = Mux( exe_tlb_ee(w), 0.B , 1.B)
-      dmem_req(w).bits.ee    := exe_tlb_ee_1 ///ZZZ
+      //zzz
+      dmem_req(w).bits.ee    := exe_tlb_ee(w) ///ZZZ
 
       s0_executing_loads(ldq_incoming_idx(w)) := dmem_req_fire(w)
       assert(!ldq_incoming_e(w).bits.executed)
@@ -785,8 +789,8 @@ class LSU(implicit p: Parameters, edge: TLEdgeOut) extends BoomModule()(p)
       dmem_req(w).valid      := !exe_tlb_miss(w) && !exe_tlb_uncacheable(w)
       dmem_req(w).bits.addr  := exe_tlb_paddr(w)
       dmem_req(w).bits.uop   := exe_tlb_uop(w)
+      //zz
       dmem_req(w).bits.ee    := exe_tlb_ee(w) ///ZZZ
-
       s0_executing_loads(ldq_retry_idx) := dmem_req_fire(w)
       assert(!ldq_retry_e.bits.executed)
     } .elsewhen (will_fire_store_commit(w)) {
@@ -801,13 +805,15 @@ class LSU(implicit p: Parameters, edge: TLEdgeOut) extends BoomModule()(p)
       stq_execute_head                     := Mux(dmem_req_fire(w),
                                                 WrapInc(stq_execute_head, numStqEntries),
                                                 stq_execute_head)
-      dmem_req(w).bits.ee := stq_commit_e.bits.ee // zzz
+      // zzz
+      dmem_req(w).bits.ee := stq_commit_e.bits.ee
 
       stq(stq_execute_head).bits.succeeded := false.B
     } .elsewhen (will_fire_load_wakeup(w)) {
       dmem_req(w).valid      := true.B
       dmem_req(w).bits.addr  := ldq_wakeup_e.bits.addr.bits
       dmem_req(w).bits.uop   := ldq_wakeup_e.bits.uop
+      // zzz
       dmem_req(w).bits.ee    := ldq_wakeup_e.bits.ee
 
       s0_executing_loads(ldq_wakeup_idx) := dmem_req_fire(w)
@@ -857,7 +863,8 @@ class LSU(implicit p: Parameters, edge: TLEdgeOut) extends BoomModule()(p)
       ldq(ldq_idx).bits.uop.pdst            := exe_tlb_uop(w).pdst
       ldq(ldq_idx).bits.addr_is_virtual     := exe_tlb_miss(w)
       ldq(ldq_idx).bits.addr_is_uncacheable := exe_tlb_uncacheable(w) && !exe_tlb_miss(w)
-      ldq(ldq_idx).bits.ee                  := Mux(exe_tlb_miss(w), false.B, exe_tlb_ee(w))
+      //zzz
+      ldq(ldq_idx).bits.ee                  := exe_tlb_ee(w)
 
       assert(!(will_fire_load_incoming(w) && ldq_incoming_e(w).bits.addr.valid),
         "[lsu] Incoming load is overwriting a valid address")
@@ -872,8 +879,8 @@ class LSU(implicit p: Parameters, edge: TLEdgeOut) extends BoomModule()(p)
       stq(stq_idx).bits.addr.bits  := Mux(exe_tlb_miss(w), exe_tlb_vaddr(w), exe_tlb_paddr(w))
       stq(stq_idx).bits.uop.pdst   := exe_tlb_uop(w).pdst // Needed for AMOs
       stq(stq_idx).bits.addr_is_virtual := exe_tlb_miss(w)
-
-      stq(stq_idx).bits.ee  := Mux(exe_tlb_miss(w), false.B , exe_tlb_ee(w))
+      //zzz
+      stq(stq_idx).bits.ee  := exe_tlb_ee(w)
       assert(!(will_fire_sta_incoming(w) && stq_incoming_e(w).bits.addr.valid),
         "[lsu] Incoming store is overwriting a valid address")
 
@@ -944,6 +951,7 @@ class LSU(implicit p: Parameters, edge: TLEdgeOut) extends BoomModule()(p)
   val mem_tlb_miss             = RegNext(exe_tlb_miss)
   val mem_tlb_uncacheable      = RegNext(exe_tlb_uncacheable)
   val mem_paddr                = RegNext(widthMap(w => dmem_req(w).bits.addr))
+  val mem_tlb_ee               = RegNext(exe_tlb_ee)
 
   // Task 1: Clr ROB busy bit
   val clr_bsy_valid   = RegInit(widthMap(w => false.B))
@@ -1614,6 +1622,10 @@ class LSU(implicit p: Parameters, edge: TLEdgeOut) extends BoomModule()(p)
 
   // for the live_store_mask, need to kill stores that haven't been committed
   val st_exc_killed_mask = WireInit(VecInit((0 until numStqEntries).map(x=>false.B)))
+
+  when ( reset.asBool) {
+    printf("RESET %d", reset.asUInt)
+  }
 
   when (reset.asBool || io.core.exception)
   {

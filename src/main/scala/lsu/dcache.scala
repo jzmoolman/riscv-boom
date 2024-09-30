@@ -417,7 +417,6 @@ class BoomNonBlockingDCacheModule(outer: BoomNonBlockingDCache) extends LazyModu
   implicit val edge = outer.node.edges.out(0)
   val (tl_out, _) = outer.node.out(0)
   val io = IO(new BoomDCacheBundle)
-//  io.lsu.req.bits(0).bits.ee
 
   private val fifoManagers = edge.manager.managers.filter(TLFIFOFixer.allVolatile)
   fifoManagers.foreach { m =>
@@ -580,7 +579,7 @@ class BoomNonBlockingDCacheModule(outer: BoomNonBlockingDCache) extends LazyModu
   metaReadArb.io.in(5).bits.req(0).tag    := DontCare
   mshrs.io.prefetch.ready := metaReadArb.io.in(5).ready
   // Prefetch does not need to read data array
-
+//  val t  = io.lsu.req.bits(0).bits.ee
   val s0_valid = Mux(io.lsu.req.fire, VecInit(io.lsu.req.bits.map(_.valid)),
                  Mux(mshrs.io.replay.fire || wb_fire || prober_fire || prefetch_fire || mshrs.io.meta_read.fire,
                                         VecInit(1.U(memWidth.W).asBools), VecInit(0.U(memWidth.W).asBools)))
@@ -779,6 +778,9 @@ class BoomNonBlockingDCacheModule(outer: BoomNonBlockingDCache) extends LazyModu
   mshrs.io.meta_resp.bits       := Mux1H(s2_tag_match_way(0), RegNext(meta(0).io.resp))
   when (mshrs.io.req.map(_.fire).reduce(_||_)) { replacer.miss }
   tl_out.a <> mshrs.io.mem_acquire
+  //zzzz
+  dontTouch(mshrs.io.mem_acquire.bits.ee)
+
 
   // probes and releases
   prober.io.req.valid   := tl_out.b.valid && !lrsc_valid

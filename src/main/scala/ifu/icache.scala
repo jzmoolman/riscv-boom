@@ -325,10 +325,11 @@ class ICacheModule(outer: ICache) extends LazyModuleImp(outer)
   io.resp.valid := s2_valid && s2_hit
 
   tl_out.a.valid := s2_miss && !refill_valid && !io.s2_kill
+  //zzz
   tl_out.a.bits := edge_out.Get(
     fromSource = 0.U,
     toAddress = (refill_paddr >> blockOffBits) << blockOffBits,
-    lgSize = lgCacheBlockBytes.U)._2
+    lgSize = lgCacheBlockBytes.U, false.B)._2
   tl_out.b.ready := true.B
   tl_out.c.valid := false.B
   tl_out.e.valid := false.B

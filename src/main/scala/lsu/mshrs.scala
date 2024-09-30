@@ -194,6 +194,7 @@ class BoomMSHR(implicit edge: TLEdgeOut, p: Parameters) extends BoomModule()(p)
     refill_ctr := 0.U
     assert(rpq.io.enq.ready)
     req := io.req
+    req.ee := io.req.ee;
     val old_coh   = io.req.old_meta.coh
     req_needs_wb := old_coh.onCacheControl(M_FLUSH)._1 // does the line we are evicting need to be written back
     when (io.req.tag_match) {
@@ -224,14 +225,16 @@ class BoomMSHR(implicit edge: TLEdgeOut, p: Parameters) extends BoomModule()(p)
     io.mem_acquire.valid := true.B
     // TODO: Use AcquirePerm if just doing permissions acquire
 
-
     io.mem_acquire.bits  := edge.AcquireBlock(
-      fromSource      = Mux(req_ee,io.id,0.U),
-//      fromSource      = Mux(req_ee,io.o.id),
+      //zzz
+      //fromSource      = Mux(req_ee,io.id,0.U),
+      //fromSource        = io.id ^ 1.U,
+      fromSource        = io.id ^ req_ee,
       toAddress       = Cat(req_tag, req_idx) << blockOffBits,
       lgSize          = lgCacheBlockBytes.U,
-      growPermissions = grow_param)._2
-    io.mem_acquire.bits.ee := req_ee
+      growPermissions = grow_param, true.B)._2
+//      io.mem_acquire.bits.ee := req_ee
+      dontTouch(io.mem_acquire.bits.ee)
     when (io.mem_acquire.fire) {
       state := s_refill_resp
     }
@@ -439,8 +442,9 @@ class BoomIOMSHR(id: Int)(implicit edge: TLEdgeOut, p: Parameters) extends BoomM
   val a_address = req.addr
   val a_size    = req.uop.mem_size
   val a_data    = Fill(beatWords, req.data)
+  //zzz
+  val get      = edge.Get(a_source ^ req.ee, a_address, a_size, req.ee)._2
 
-  val get      = edge.Get(a_source, a_address, a_size)._2
   val put      = edge.Put(a_source, a_address, a_size, a_data)._2
   val atomics  = if (edge.manager.anySupportLogical) {
     MuxLookup(req.uop.mem_cmd, (0.U).asTypeOf(new TLBundleA(edge.bundle)), Array(

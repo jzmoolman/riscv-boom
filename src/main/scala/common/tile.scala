@@ -131,7 +131,6 @@ class BoomTile private(
   val dCacheTap = TLIdentityNode()
   tlMasterXbar.node := dCacheTap := TLWidthWidget(tileParams.dcache.get.rowBits/8) := visibilityNode := dcache.node
 
-
   // Frontend/ICache
   val frontend = LazyModule(new BoomFrontend(tileParams.icache.get, staticIdForMetadataUseOnly))
   frontend.resetVectorSinkNode := resetVectorNexusNode
@@ -169,6 +168,15 @@ class BoomTileModuleImp(outer: BoomTile) extends BaseTileModuleImp(outer){
   outer.traceSourceNode.bundle <> core.io.trace
   outer.bpwatchSourceNode.bundle <> DontCare // core.io.bpwatch
   core.io.hartid := outer.hartIdSinkNode.bundle
+
+
+  val tmp_ee = outer.dcache.node.out(0)._1.a.bits.ee;
+  dontTouch(tmp_ee)
+//  outer.masterNode.in(0)._1.a.bits.ee := tmp_ee
+//  outer.masterNode.in(0)._1.a.bits.ee := tmp_ee
+//  if ( dCacheTap.in(0)._1.a.bits.ee == 1 ) {
+//    dCacheTap.in(0)._1.a.bits.source := dCacheTap.in(0)._1.a.bits.source ^ 1.U
+//  }
 
   // Connect the core pipeline to other intra-tile modules
   outer.frontend.module.io.cpu <> core.io.ifu
@@ -247,7 +255,7 @@ class BoomTileModuleImp(outer: BoomTile) extends BaseTileModuleImp(outer){
   val frontendStr = outer.frontend.module.toString
   val coreStr = core.toString
   val boomTileStr =
-    (BoomCoreStringPrefix(s"======BOOM Tile ${staticIdForMetadataUseOnly} Params======") + "\n"
+    (BoomCoreStringPrefix(s"======BOOM Tile ZZZZ ${staticIdForMetadataUseOnly} Params======") + "\n"
     + frontendStr
     + coreStr + "\n")
 
