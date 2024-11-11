@@ -205,6 +205,7 @@ class LSU(implicit p: Parameters, edge: TLEdgeOut) extends BoomModule()(p)
   with rocket.HasL1HellaCacheParameters
 {
   val io = IO(new LSUIO)
+
   io.hellacache := DontCare
 
 

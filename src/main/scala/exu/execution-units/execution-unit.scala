@@ -107,6 +107,7 @@ abstract class ExecutionUnit(
 
     val req      = Flipped(new DecoupledIO(new FuncUnitReq(dataWidth)))
 
+
     val iresp    = if (writesIrf)   new DecoupledIO(new ExeUnitResp(dataWidth)) else null
     val fresp    = if (writesFrf)   new DecoupledIO(new ExeUnitResp(dataWidth)) else null
     val ll_iresp = if (writesLlIrf) new DecoupledIO(new ExeUnitResp(dataWidth)) else null

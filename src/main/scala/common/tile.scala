@@ -6,27 +6,25 @@
 package boom.common
 
 import chisel3._
-import chisel3.util.{RRArbiter, Queue}
+import chisel3.util.{Queue, RRArbiter}
 
-import scala.collection.mutable.{ListBuffer}
-
+import scala.collection.mutable.ListBuffer
 import org.chipsalliance.cde.config._
 import freechips.rocketchip.subsystem._
 import freechips.rocketchip.devices.tilelink._
 import freechips.rocketchip.diplomacy._
-
 import freechips.rocketchip.rocket._
-import freechips.rocketchip.subsystem.{RocketCrossingParams}
+import freechips.rocketchip.subsystem.RocketCrossingParams
 import freechips.rocketchip.tilelink._
 import freechips.rocketchip.interrupts._
 import freechips.rocketchip.util._
 import freechips.rocketchip.tile._
-
 import boom.exu._
 import boom.ifu._
 import boom.lsu._
-import boom.util.{BoomCoreStringPrefix}
+import boom.util.BoomCoreStringPrefix
 import freechips.rocketchip.prci.ClockSinkParameters
+import mmc.MMC
 
 
 case class BoomTileAttachParams(
@@ -139,6 +137,10 @@ class BoomTile private(
 
   require(tileParams.dcache.get.rowBits == tileParams.icache.get.rowBits)
 
+  // ZZZ MMC
+  val mmc = LazyModule(new MMC(staticIdForMetadataUseOnly))
+  tlMasterXbar.node := TLWidthWidget(tileParams.dcache.get.rowBits/8) := visibilityNode := mmc.node
+
   // ROCC
   val roccs = p(BuildRoCC).map(_(p))
   roccs.map(_.atlNode).foreach { atl => tlMasterXbar.node :=* atl }
@@ -173,6 +175,9 @@ class BoomTileModuleImp(outer: BoomTile) extends BaseTileModuleImp(outer){
   // Connect the core pipeline to other intra-tile modules
   outer.frontend.module.io.cpu <> core.io.ifu
   core.io.lsu <> lsu.io.core
+
+  // ZZZ MMCIO
+  core.io.mmc.rw <> outer.mmc.module.io.rw
 
   //fpuOpt foreach { fpu => core.io.fpu <> fpu.io } RocketFpu - not needed in boom
   core.io.rocc := DontCare
