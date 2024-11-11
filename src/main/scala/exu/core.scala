@@ -41,7 +41,8 @@ import boom.common._
 import boom.ifu.{GlobalHistory, HasBoomFrontendParameters}
 import boom.exu.FUConstants._
 import boom.util._
-import mmc.{MMC, MMCIO}
+// ZZZ del memcontroller as bus
+//import mmc.{MMC, MMCIO}
 
 /**
  * Top level core object that connects the Frontend to the rest of the pipeline.
@@ -59,7 +60,8 @@ class BoomCore()(implicit p: Parameters) extends BoomModule
     val ptw_tlb = new freechips.rocketchip.rocket.TLBPTWIO()
     val trace = Output(new TraceBundle)
     val fcsr_rm = UInt(freechips.rocketchip.tile.FPConstants.RM_SZ.W)
-    val mmc = Flipped( new MMCIO())
+    // ZZZ del memcontroller as bus
+    // val mmc = Flipped( new MMCIO())
   })
 
   io.ptw_tlb := DontCare
@@ -996,7 +998,8 @@ class BoomCore()(implicit p: Parameters) extends BoomModule
   val csr_exe_unit = exe_units.csr_unit
 
   // for critical path reasons, we aren't zero'ing this out if resp is not valid
-//  csr_exe_unit.
+  // ZZZ remove memcontroller
+  //  csr_exe_unit.
   val csr_rw_cmd = csr_exe_unit.io.iresp.bits.uop.ctrl.csr_cmd
   val wb_wdata = csr_exe_unit.io.iresp.bits.data
 
@@ -1059,10 +1062,10 @@ class BoomCore()(implicit p: Parameters) extends BoomModule
   io.fcsr_rm := csr.io.fcsr_rm
 
   /// ZZZ Add buffer to send command to memory controller
-
-  io.mmc.rw.addr   := csr_exe_unit.io.iresp.bits.uop.csr_addr
-  io.mmc.rw.cmd    := freechips.rocketchip.rocket.CSR.maskCmd(csr_exe_unit.io.iresp.valid, csr_rw_cmd)
-  io.mmc.rw.wdata  := wb_wdata
+  //  REMOVE memcontroller as bus
+//  io.mmc.rw.addr   := csr_exe_unit.io.iresp.bits.uop.csr_addr
+//  io.mmc.rw.cmd    := freechips.rocketchip.rocket.CSR.maskCmd(csr_exe_unit.io.iresp.valid, csr_rw_cmd)
+//  io.mmc.rw.wdata  := wb_wdata
 
 
   if (usingFPU) {
