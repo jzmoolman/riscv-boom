@@ -24,7 +24,7 @@ import boom.ifu._
 import boom.lsu._
 import boom.util.BoomCoreStringPrefix
 import freechips.rocketchip.prci.ClockSinkParameters
-// import mmc.MMC zzz del memory controller as bus
+import epmp.EPMP
 
 
 case class BoomTileAttachParams(
@@ -137,9 +137,8 @@ class BoomTile private(
 
   require(tileParams.dcache.get.rowBits == tileParams.icache.get.rowBits)
 
-  // ZZZ MMC zzz del memorycontroller as bus
-  //val mmc = LazyModule(new MMC(staticIdForMetadataUseOnly))
-  //tlMasterXbar.node := TLWidthWidget(tileParams.dcache.get.rowBits/8) := visibilityNode := mmc.node
+  val epmp = LazyModule(new EPMP(staticIdForMetadataUseOnly))
+  tlMasterXbar.node := TLWidthWidget(tileParams.dcache.get.rowBits/8) := visibilityNode := epmp.node
 
   // ROCC
   val roccs = p(BuildRoCC).map(_(p))
@@ -176,8 +175,8 @@ class BoomTileModuleImp(outer: BoomTile) extends BaseTileModuleImp(outer){
   outer.frontend.module.io.cpu <> core.io.ifu
   core.io.lsu <> lsu.io.core
 
-  // ZZZ MMCIO zzz del memorycontroller as bus
-  //core.io.mmc.rw <> outer.mmc.module.io.rw
+  //ZZZ
+  core.io.epmp.rw <> outer.epmp.module.io.rw
 
   //fpuOpt foreach { fpu => core.io.fpu <> fpu.io } RocketFpu - not needed in boom
   core.io.rocc := DontCare

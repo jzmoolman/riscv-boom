@@ -28,21 +28,18 @@
 
 package boom.exu
 
-import java.nio.file.Paths
 import chisel3._
 import chisel3.util._
 import org.chipsalliance.cde.config.Parameters
-import freechips.rocketchip.rocket.Instructions._
 import freechips.rocketchip.tile.TraceBundle
-import freechips.rocketchip.rocket.{Causes, PRV, TracedInstruction}
-import freechips.rocketchip.util.{CoreMonitorBundle, Str, UIntIsOneOf}
-import freechips.rocketchip.devices.tilelink.{CLINTConsts, PLICConsts}
+import freechips.rocketchip.rocket.{Causes}
+import freechips.rocketchip.util.{CoreMonitorBundle, UIntIsOneOf}
 import boom.common._
 import boom.ifu.{GlobalHistory, HasBoomFrontendParameters}
 import boom.exu.FUConstants._
 import boom.util._
-// ZZZ del memcontroller as bus
-//import mmc.{MMC, MMCIO}
+//ZZZ
+import epmp.{EPMP, EPMPIO}
 
 /**
  * Top level core object that connects the Frontend to the rest of the pipeline.
@@ -60,8 +57,8 @@ class BoomCore()(implicit p: Parameters) extends BoomModule
     val ptw_tlb = new freechips.rocketchip.rocket.TLBPTWIO()
     val trace = Output(new TraceBundle)
     val fcsr_rm = UInt(freechips.rocketchip.tile.FPConstants.RM_SZ.W)
-    // ZZZ del memcontroller as bus
-    // val mmc = Flipped( new MMCIO())
+    //ZZZ
+     val epmp = Flipped( new EPMPIO())
   })
 
   io.ptw_tlb := DontCare
@@ -998,8 +995,7 @@ class BoomCore()(implicit p: Parameters) extends BoomModule
   val csr_exe_unit = exe_units.csr_unit
 
   // for critical path reasons, we aren't zero'ing this out if resp is not valid
-  // ZZZ remove memcontroller
-  //  csr_exe_unit.
+
   val csr_rw_cmd = csr_exe_unit.io.iresp.bits.uop.ctrl.csr_cmd
   val wb_wdata = csr_exe_unit.io.iresp.bits.data
 
@@ -1061,11 +1057,10 @@ class BoomCore()(implicit p: Parameters) extends BoomModule
   exe_units.withFilter(_.hasFcsr).map(_.io.fcsr_rm := csr.io.fcsr_rm)
   io.fcsr_rm := csr.io.fcsr_rm
 
-  /// ZZZ Add buffer to send command to memory controller
-  //  REMOVE memcontroller as bus
-//  io.mmc.rw.addr   := csr_exe_unit.io.iresp.bits.uop.csr_addr
-//  io.mmc.rw.cmd    := freechips.rocketchip.rocket.CSR.maskCmd(csr_exe_unit.io.iresp.valid, csr_rw_cmd)
-//  io.mmc.rw.wdata  := wb_wdata
+  //ZZZ
+  io.epmp.rw.addr   := csr_exe_unit.io.iresp.bits.uop.csr_addr
+  io.epmp.rw.cmd    := freechips.rocketchip.rocket.CSR.maskCmd(csr_exe_unit.io.iresp.valid, csr_rw_cmd)
+  io.epmp.rw.wdata  := wb_wdata
 
 
   if (usingFPU) {
