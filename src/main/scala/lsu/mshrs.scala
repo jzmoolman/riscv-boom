@@ -226,12 +226,12 @@ class BoomMSHR(implicit edge: TLEdgeOut, p: Parameters) extends BoomModule()(p)
 
 
     io.mem_acquire.bits  := edge.AcquireBlock(
-      fromSource      = Mux(req_ee,io.id,0.U),
-//      fromSource      = Mux(req_ee,io.o.id),
+      fromSource      = io.id,
+      // fromSource      = Mux(req_ee,io.o.id),
       toAddress       = Cat(req_tag, req_idx) << blockOffBits,
       lgSize          = lgCacheBlockBytes.U,
       growPermissions = grow_param)._2
-    io.mem_acquire.bits.ee := req_ee
+      io.mem_acquire.bits.ee_a := req_ee
     when (io.mem_acquire.fire) {
       state := s_refill_resp
     }
@@ -242,6 +242,7 @@ class BoomMSHR(implicit edge: TLEdgeOut, p: Parameters) extends BoomModule()(p)
       io.lb_write.bits.id     := io.id
       io.lb_write.bits.offset := refill_address_inc >> rowOffBits
       io.lb_write.bits.data   := io.mem_grant.bits.data
+//      io.lb_write.bits.ee := io.mem_grant.bits.ee
     } .otherwise {
       io.mem_grant.ready      := true.B
     }
@@ -317,6 +318,7 @@ class BoomMSHR(implicit edge: TLEdgeOut, p: Parameters) extends BoomModule()(p)
     io.meta_write.bits.data.coh := coh_on_clear
     io.meta_write.bits.data.tag := req_tag
     io.meta_write.bits.way_en   := req.way_en
+    io.meta_write.bits.ee := req_ee // zzz
 
     when (io.meta_write.fire) {
       state      := s_wb_req
@@ -372,6 +374,7 @@ class BoomMSHR(implicit edge: TLEdgeOut, p: Parameters) extends BoomModule()(p)
     io.meta_write.bits.data.coh := new_coh
     io.meta_write.bits.data.tag := req_tag
     io.meta_write.bits.way_en   := req.way_en
+    io.meta_write.bits.ee       := req_ee // zzzz
     when (io.meta_write.fire) {
       state := s_mem_finish_1
       finish_to_prefetch := false.B
@@ -497,6 +500,7 @@ class LineBufferReadReq(implicit p: Parameters) extends BoomBundle()(p)
   val id      = UInt(log2Ceil(nLBEntries).W)
   val offset  = UInt(log2Ceil(cacheDataBeats).W)
   def lb_addr = Cat(id, offset)
+  val ee      = Bool() //
 }
 
 class LineBufferWriteReq(implicit p: Parameters) extends LineBufferReadReq()(p)

@@ -167,6 +167,7 @@ class BoomProbeUnit(implicit edge: TLEdgeOut, p: Parameters) extends L1HellaCach
   val req = Reg(new TLBundleB(edge.bundle))
   val req_idx = req.address(idxMSB, idxLSB)
   val req_tag = req.address >> untagBits
+  val req_ee  = false.B //  Mmm this isnt right
 
   val way_en = Reg(UInt())
   val tag_matches = way_en.orR
@@ -189,6 +190,7 @@ class BoomProbeUnit(implicit edge: TLEdgeOut, p: Parameters) extends L1HellaCach
   io.meta_read.bits.idx := req_idx
   io.meta_read.bits.tag := req_tag
   io.meta_read.bits.way_en := ~(0.U(nWays.W))
+  io.meta_read.bits.ee := req_ee
 
   io.meta_write.valid := state === s_meta_write
   io.meta_write.bits.way_en := way_en
@@ -196,6 +198,7 @@ class BoomProbeUnit(implicit edge: TLEdgeOut, p: Parameters) extends L1HellaCach
   io.meta_write.bits.tag := req_tag
   io.meta_write.bits.data.tag := req_tag
   io.meta_write.bits.data.coh := new_coh
+  io.meta_write.bits.ee := req_ee
 
   io.wb_req.valid := state === s_writeback_req
   io.wb_req.bits.source := req.source
@@ -437,6 +440,7 @@ class BoomNonBlockingDCacheModule(outer: BoomNonBlockingDCache) extends LazyModu
   mshrs.io.exception    := io.lsu.exception
   mshrs.io.rob_pnr_idx  := io.lsu.rob_pnr_idx
   mshrs.io.rob_head_idx := io.lsu.rob_head_idx
+
 
   // tags
   def onReset = L1Metadata(0.U, ClientMetadata.onReset)

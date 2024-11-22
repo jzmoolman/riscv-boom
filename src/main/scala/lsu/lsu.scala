@@ -716,7 +716,7 @@ class LSU(implicit p: Parameters, edge: TLEdgeOut) extends BoomModule()(p)
   val exe_tlb_paddr = widthMap(w => Cat(dtlb.io.resp(w).paddr(paddrBits-1,corePgIdxBits),
                                         exe_tlb_vaddr(w)(corePgIdxBits-1,0)))
   val exe_tlb_uncacheable = widthMap(w => !(dtlb.io.resp(w).cacheable))
-  val exe_tlb_ee = widthMap(w => dontTouch(dtlb.io.resp(w).ee))
+  val exe_tlb_ee = widthMap(w => dtlb.io.resp(w).ee)
 
   for (w <- 0 until memWidth) {
     assert (exe_tlb_paddr(w) === dtlb.io.resp(w).paddr || exe_req(w).bits.sfence.valid, "[lsu] paddrs should match.")
@@ -776,9 +776,7 @@ class LSU(implicit p: Parameters, edge: TLEdgeOut) extends BoomModule()(p)
       dmem_req(w).valid      := !exe_tlb_miss(w) && !exe_tlb_uncacheable(w)
       dmem_req(w).bits.addr  := exe_tlb_paddr(w)
       dmem_req(w).bits.uop   := exe_tlb_uop(w)
-//    dmem_req(w).bits.ee    := exe_tlb_ee(w) ///ZZZ
-      val exe_tlb_ee_1 = Mux( exe_tlb_ee(w), 0.B , 1.B)
-      dmem_req(w).bits.ee    := exe_tlb_ee_1 ///ZZZ
+      dmem_req(w).bits.ee    := exe_tlb_ee(w) ///ZZZ
 
       s0_executing_loads(ldq_incoming_idx(w)) := dmem_req_fire(w)
       assert(!ldq_incoming_e(w).bits.executed)
@@ -827,7 +825,7 @@ class LSU(implicit p: Parameters, edge: TLEdgeOut) extends BoomModule()(p)
       dmem_req(w).bits.uop.mem_size   := hella_req.size
       dmem_req(w).bits.uop.mem_signed := hella_req.signed
       dmem_req(w).bits.is_hella       := true.B
-      dmem_req(w).bits.ee             := false.B
+      dmem_req(w).bits.ee             := exe_tlb_ee(w)
 
       hella_paddr := exe_tlb_paddr(w)
       hella_ee := exe_tlb_ee(w)

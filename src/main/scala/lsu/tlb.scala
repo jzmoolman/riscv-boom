@@ -312,8 +312,8 @@ class NBDTLB(instruction: Boolean, lgMaxSize: Int, cfg: TLBConfig)(implicit edge
     io.resp(w).prefetchable := (prefetchable_array(w) & hits(w)).orR && edge.manager.managers.forall(m => !m.supportsAcquireB || m.supportsHint).B
     io.resp(w).miss  := do_refill || tlb_miss(w) || multipleHits(w)
     io.resp(w).paddr := Cat(ppn(w), io.req(w).bits.vaddr(pgIdxBits-1, 0))
-    io.resp(w).ee := dontTouch(ee_array(w))
-//    io.resp(w).ee := prot_ee(w)  // pmp_0_io_ee
+//    io.resp(w).ee := dontTouch(ee_array(w))
+    io.resp(w).ee := prot_ee(w)  // pmp_0_io_ee
   }
 
   io.ptw.req.valid := state === s_request
